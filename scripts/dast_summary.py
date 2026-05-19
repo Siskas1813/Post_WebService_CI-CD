@@ -96,6 +96,17 @@ def main() -> None:
         ]
     )
 
+    diagnostics = ROOT / "zap-diagnostics.md"
+    if diagnostics.exists():
+        lines.extend(
+            [
+                "## ZAP Execution Diagnostics",
+                "",
+                diagnostics.read_text(encoding="utf-8", errors="replace").strip(),
+                "",
+            ]
+        )
+
     SUMMARY_MD.write_text("\n".join(lines), encoding="utf-8")
     print(f"Summary written to {SUMMARY_MD}")
 

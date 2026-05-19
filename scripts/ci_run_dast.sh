@@ -8,7 +8,7 @@ ZAP_AUTH_PASSWORD="${ZAP_AUTH_PASSWORD:-employee123}"
 APP_PORT="${APP_PORT:-5000}"
 
 mkdir -p reports/dast uploads
-rm -f reports/dast/zap-*.html reports/dast/zap-*.json reports/dast/zap-*.md reports/dast/zap-auth-plan.yaml reports/dast/summary.md reports/dast/flask.out.log reports/dast/flask.err.log
+rm -f reports/dast/zap-*.html reports/dast/zap-*.json reports/dast/zap-*.md reports/dast/zap-*.log reports/dast/zap-auth-plan.yaml reports/dast/summary.md reports/dast/flask.out.log reports/dast/flask.err.log reports/dast/zap-diagnostics.md
 
 echo "Starting application for DAST..."
 export CORP_MAIL_DISABLE_CSRF_FOR_DAST=1
@@ -48,7 +48,7 @@ docker run "${ZAP_DOCKER_ARGS[@]}" \
   -r zap-baseline.html \
   -J zap-baseline.json \
   -w zap-baseline.md \
-  -I
+  -I > reports/dast/zap-baseline.log 2>&1
 ZAP_BASELINE_EXIT=$?
 set -e
 
@@ -60,7 +60,7 @@ docker run "${ZAP_DOCKER_ARGS[@]}" \
   -r zap-full.html \
   -J zap-full.json \
   -w zap-full.md \
-  -I
+  -I > reports/dast/zap-full.log 2>&1
 ZAP_FULL_EXIT=$?
 set -e
 
@@ -142,7 +142,7 @@ set +e
 docker run "${ZAP_DOCKER_ARGS[@]}" \
   zap.sh \
   -cmd \
-  -autorun /zap/wrk/zap-auth-plan.yaml
+  -autorun /zap/wrk/zap-auth-plan.yaml > reports/dast/zap-auth.log 2>&1
 ZAP_AUTH_EXIT=$?
 set -e
 
@@ -152,9 +152,42 @@ set -e
   echo "ZAP authenticated exit code: $ZAP_AUTH_EXIT"
 } > reports/dast/zap-exit-codes.txt
 
-python scripts/dast_summary.py
+{
+  echo "# ZAP Diagnostics"
+  echo
+  cat reports/dast/zap-exit-codes.txt
+  echo
+} > reports/dast/zap-diagnostics.md
 
-if ! compgen -G "reports/dast/zap-*.json" > /dev/null; then
-  echo "No ZAP JSON reports were generated." >&2
-  exit 1
-fi
+ensure_zap_json() {
+  local scan_name="$1"
+  local exit_code="$2"
+  local json_path="reports/dast/zap-${scan_name}.json"
+  local md_path="reports/dast/zap-${scan_name}.md"
+  local html_path="reports/dast/zap-${scan_name}.html"
+
+  if [[ ! -f "$json_path" ]]; then
+    echo "ZAP ${scan_name} scan did not produce JSON. Exit code: ${exit_code}" >> reports/dast/zap-diagnostics.md
+    echo '{"site":[],"alerts":[]}' > "$json_path"
+  fi
+  if [[ ! -f "$md_path" ]]; then
+    {
+      echo "# ZAP ${scan_name} scan"
+      echo
+      echo "The scan did not produce a Markdown report. See zap-${scan_name}.log and zap-diagnostics.md."
+    } > "$md_path"
+  fi
+  if [[ ! -f "$html_path" ]]; then
+    {
+      echo "<!doctype html><meta charset=\"utf-8\"><title>ZAP ${scan_name} scan</title>"
+      echo "<h1>ZAP ${scan_name} scan</h1>"
+      echo "<p>The scan did not produce an HTML report. See zap-${scan_name}.log and zap-diagnostics.md.</p>"
+    } > "$html_path"
+  fi
+}
+
+ensure_zap_json "baseline" "$ZAP_BASELINE_EXIT"
+ensure_zap_json "full" "$ZAP_FULL_EXIT"
+ensure_zap_json "auth" "$ZAP_AUTH_EXIT"
+
+python scripts/dast_summary.py
