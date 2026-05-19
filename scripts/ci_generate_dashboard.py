@@ -207,18 +207,20 @@ def main() -> None:
   <title>Security CI/CD Dashboard</title>
   <style>
     :root {{
-      --bg: #f5f7fb;
+      --bg: #eef2f6;
       --panel: #ffffff;
-      --ink: #172033;
-      --muted: #667085;
-      --line: #d8dee9;
-      --ok: #0f8a5f;
+      --ink: #111827;
+      --muted: #64748b;
+      --line: #d8e0eb;
+      --soft: #f8fafc;
+      --navy: #111a2e;
+      --ok: #07835d;
       --bad: #b42318;
       --info: #2563eb;
-      --low: #a16207;
+      --low: #b7791f;
       --medium: #c2410c;
       --high: #be123c;
-      --shadow: 0 18px 45px rgba(23, 32, 51, .08);
+      --shadow: 0 16px 34px rgba(15, 23, 42, .09);
     }}
     * {{ box-sizing: border-box; }}
     body {{
@@ -226,20 +228,42 @@ def main() -> None:
       font-family: Inter, Segoe UI, Arial, sans-serif;
       color: var(--ink);
       background: var(--bg);
+      line-height: 1.45;
     }}
     header {{
-      background: #172033;
+      background:
+        radial-gradient(circle at 86% 14%, rgba(20, 184, 166, .22), transparent 28%),
+        linear-gradient(135deg, #111827 0%, #18243a 62%, #23344f 100%);
       color: white;
-      padding: 34px 42px;
+      padding: 34px 24px 38px;
+    }}
+    .masthead {{
+      max-width: 1320px;
+      margin: 0 auto;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
     }}
     header h1 {{ margin: 0 0 8px; font-size: 30px; letter-spacing: 0; }}
-    header p {{ margin: 0; color: #cbd5e1; }}
-    main {{ padding: 28px 42px 46px; max-width: 1400px; margin: 0 auto; }}
+    header p {{ margin: 0; color: #d9e2f0; max-width: 760px; }}
+    .gate-chip {{
+      min-width: 190px;
+      border: 1px solid rgba(255, 255, 255, .22);
+      background: rgba(255, 255, 255, .09);
+      padding: 14px 16px;
+      border-radius: 8px;
+      text-align: right;
+    }}
+    .gate-chip span {{ display: block; color: #cbd5e1; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0; }}
+    .gate-chip strong {{ display: block; margin-top: 4px; font-size: 24px; color: #5ee0ad; }}
+    .gate-chip.bad strong {{ color: #fca5a5; }}
+    main {{ padding: 24px 24px 46px; max-width: 1320px; margin: 0 auto; }}
     .hero {{
       display: grid;
-      grid-template-columns: minmax(260px, 1.3fr) repeat(4, minmax(150px, .7fr));
-      gap: 16px;
-      margin-top: -54px;
+      grid-template-columns: 1.25fr repeat(4, 1fr);
+      gap: 14px;
+      margin-top: 0;
       align-items: stretch;
     }}
     .card, .panel {{
@@ -248,22 +272,27 @@ def main() -> None:
       border-radius: 8px;
       box-shadow: var(--shadow);
     }}
-    .card {{ padding: 20px; }}
-    .card h2 {{ margin: 0 0 10px; font-size: 14px; color: var(--muted); font-weight: 700; }}
-    .metric {{ font-size: 34px; font-weight: 800; margin: 0; }}
-    .sub {{ color: var(--muted); font-size: 13px; margin-top: 8px; }}
-    .gate {{ border-top: 5px solid var(--ok); }}
-    .gate.bad {{ border-top-color: var(--bad); }}
+    .card {{
+      min-height: 132px;
+      padding: 18px;
+      border-top: 4px solid #cbd5e1;
+    }}
+    .card h2 {{ margin: 0 0 12px; font-size: 12px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: 0; }}
+    .metric {{ font-size: 32px; line-height: 1; font-weight: 850; margin: 0; }}
+    .sub {{ color: var(--muted); font-size: 13px; margin-top: 10px; }}
+    .gate {{ border-top-color: var(--ok); background: linear-gradient(180deg, #ffffff 0%, #f3fbf8 100%); }}
+    .gate.bad {{ border-top-color: var(--bad); background: linear-gradient(180deg, #ffffff 0%, #fff7f7 100%); }}
     .gate .metric {{ color: var(--ok); }}
     .gate.bad .metric {{ color: var(--bad); }}
     .grid {{ display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; margin-top: 20px; }}
-    .panel {{ padding: 22px; }}
-    .panel h2 {{ margin: 0 0 16px; font-size: 20px; }}
+    .panel {{ padding: 20px 22px; }}
+    .panel h2 {{ margin: 0 0 14px; font-size: 18px; }}
     table {{ width: 100%; border-collapse: collapse; }}
-    th, td {{ padding: 12px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }}
-    th {{ color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }}
+    th, td {{ padding: 11px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }}
+    th {{ color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0; }}
+    tbody tr:hover {{ background: var(--soft); }}
     td small {{ display: block; color: var(--muted); margin-top: 3px; }}
-    code {{ background: #eef2f7; padding: 3px 6px; border-radius: 5px; font-size: 12px; }}
+    code {{ background: #eef3f8; padding: 4px 7px; border-radius: 5px; font-size: 12px; color: #1f3b57; }}
     .badge {{
       display: inline-flex;
       align-items: center;
@@ -288,21 +317,36 @@ def main() -> None:
     .bar .medium {{ background: var(--medium); }}
     .bar .low {{ background: var(--low); }}
     .bar .info {{ background: var(--info); }}
-    .links {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }}
-    .link-card {{ border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fbfcff; }}
+    .links {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }}
+    .link-card {{ border: 1px solid var(--line); border-radius: 8px; padding: 13px; background: var(--soft); }}
     .link-card strong {{ display: block; margin-bottom: 6px; }}
-    .link-card span {{ color: var(--muted); font-size: 13px; }}
+    .link-card span {{ color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }}
     @media (max-width: 1080px) {{
       header, main {{ padding-left: 18px; padding-right: 18px; }}
+      .masthead {{ align-items: flex-start; flex-direction: column; }}
+      .gate-chip {{ text-align: left; width: 100%; }}
       .hero, .grid, .links {{ grid-template-columns: 1fr; }}
-      .hero {{ margin-top: -34px; }}
+    }}
+    @media (max-width: 760px) {{
+      header h1 {{ font-size: 24px; }}
+      main {{ padding-top: 18px; }}
+      .panel {{ overflow-x: auto; }}
+      table {{ min-width: 680px; }}
     }}
   </style>
 </head>
 <body>
   <header>
-    <h1>Security CI/CD Dashboard</h1>
-    <p>Единый отчет автоматизированных контролей безопасности. Сформировано: {generated_at}</p>
+    <div class="masthead">
+      <div>
+        <h1>Security CI/CD Dashboard</h1>
+        <p>Единый отчет автоматизированных контролей безопасности. Сформировано: {generated_at}</p>
+      </div>
+      <div class="gate-chip {status_class(total_blocking)}">
+        <span>Security Gate</span>
+        <strong>{gate}</strong>
+      </div>
+    </div>
   </header>
   <main>
     <section class="hero">
