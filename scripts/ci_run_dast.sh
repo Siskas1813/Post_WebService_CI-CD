@@ -41,6 +41,7 @@ curl -fsS "http://127.0.0.1:${APP_PORT}/" >/dev/null
 ZAP_DOCKER_ARGS=(--rm --add-host=host.docker.internal:host-gateway -v "${PWD}/reports/dast:/zap/wrk" "$ZAP_IMAGE")
 
 echo "Running OWASP ZAP Baseline Scan..."
+set +e
 docker run "${ZAP_DOCKER_ARGS[@]}" \
   zap-baseline.py \
   -t "$TARGET" \
@@ -48,8 +49,11 @@ docker run "${ZAP_DOCKER_ARGS[@]}" \
   -J zap-baseline.json \
   -w zap-baseline.md \
   -I
+ZAP_BASELINE_EXIT=$?
+set -e
 
 echo "Running OWASP ZAP Full Scan..."
+set +e
 docker run "${ZAP_DOCKER_ARGS[@]}" \
   zap-full-scan.py \
   -t "$TARGET" \
@@ -57,6 +61,8 @@ docker run "${ZAP_DOCKER_ARGS[@]}" \
   -J zap-full.json \
   -w zap-full.md \
   -I
+ZAP_FULL_EXIT=$?
+set -e
 
 cat > reports/dast/zap-auth-plan.yaml <<YAML
 env:
@@ -132,9 +138,23 @@ jobs:
 YAML
 
 echo "Running OWASP ZAP Authenticated Scan..."
+set +e
 docker run "${ZAP_DOCKER_ARGS[@]}" \
   zap.sh \
   -cmd \
   -autorun /zap/wrk/zap-auth-plan.yaml
+ZAP_AUTH_EXIT=$?
+set -e
+
+{
+  echo "ZAP baseline exit code: $ZAP_BASELINE_EXIT"
+  echo "ZAP full exit code: $ZAP_FULL_EXIT"
+  echo "ZAP authenticated exit code: $ZAP_AUTH_EXIT"
+} > reports/dast/zap-exit-codes.txt
 
 python scripts/dast_summary.py
+
+if ! compgen -G "reports/dast/zap-*.json" > /dev/null; then
+  echo "No ZAP JSON reports were generated." >&2
+  exit 1
+fi
