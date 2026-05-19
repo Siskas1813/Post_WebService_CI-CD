@@ -1,0 +1,363 @@
+import html
+import json
+import re
+from collections import Counter
+from datetime import datetime, UTC
+from pathlib import Path
+
+
+REPORTS = Path("reports")
+OUT = REPORTS / "security-dashboard.html"
+
+
+def read_text(path: Path) -> str:
+    if not path.exists():
+        return ""
+    raw = path.read_bytes()
+    for encoding in ("utf-8-sig", "utf-16"):
+        try:
+            return raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
+def load_json(path: Path, fallback):
+    if not path.exists():
+        return fallback
+    try:
+        return json.loads(read_text(path))
+    except json.JSONDecodeError:
+        return fallback
+
+
+def first_int(text: str, label: str) -> int:
+    match = re.search(rf"{re.escape(label)}\s*(\d+)", text)
+    return int(match.group(1)) if match else 0
+
+
+def pytest_result() -> str:
+    text = read_text(REPORTS / "pytest" / "security-tests.txt")
+    for line in reversed(text.splitlines()):
+        if " passed" in line or " failed" in line:
+            return line.strip("= ")
+    return "not generated"
+
+
+def sast_metrics():
+    semgrep = load_json(REPORTS / "sast" / "semgrep.json", {})
+    bandit = load_json(REPORTS / "sast" / "bandit.json", {})
+    semgrep_count = len(semgrep.get("results", []))
+    bandit_count = len(bandit.get("results", []))
+    severity = Counter()
+    for item in semgrep.get("results", []):
+        severity[item.get("extra", {}).get("severity", "UNKNOWN")] += 1
+    for item in bandit.get("results", []):
+        severity[item.get("issue_severity", "UNKNOWN")] += 1
+    return semgrep_count, bandit_count, severity
+
+
+def sca_metrics():
+    pip_audit = load_json(REPORTS / "sca" / "pip-audit.json", {})
+    trivy = load_json(REPORTS / "sca" / "trivy.json", {})
+    pip_count = sum(len(dep.get("vulns", [])) for dep in pip_audit.get("dependencies", []))
+    trivy_count = 0
+    severity = Counter()
+    for result in trivy.get("Results", []):
+        for vuln in result.get("Vulnerabilities", []) or []:
+            trivy_count += 1
+            severity[vuln.get("Severity", "UNKNOWN")] += 1
+    return pip_count, trivy_count, severity
+
+
+def secrets_metrics():
+    detect = load_json(REPORTS / "secrets" / "detect-secrets.json", {})
+    gitleaks = load_json(REPORTS / "secrets" / "gitleaks.json", [])
+    detect_count = sum(len(items) for items in detect.get("results", {}).values())
+    gitleaks_count = len(gitleaks) if isinstance(gitleaks, list) else 0
+    return detect_count, gitleaks_count
+
+
+def dast_alerts():
+    rows = []
+    for path in sorted((REPORTS / "dast").glob("zap-*.json")):
+        data = load_json(path, {})
+        alerts = []
+        if isinstance(data.get("site"), list):
+            for site in data["site"]:
+                alerts.extend(site.get("alerts", []))
+        if isinstance(data.get("alerts"), list):
+            alerts.extend(data["alerts"])
+        for alert in alerts:
+            risk = alert.get("riskdesc") or alert.get("risk") or "unknown"
+            rows.append(
+                {
+                    "scan": path.stem,
+                    "name": alert.get("name") or alert.get("alert") or "",
+                    "risk": risk,
+                    "confidence": str(alert.get("confidence") or ""),
+                    "instances": len(alert.get("instances", [])) if isinstance(alert.get("instances"), list) else 0,
+                }
+            )
+    return rows
+
+
+def risk_bucket(risk: str) -> str:
+    risk = risk.lower()
+    if "high" in risk and not risk.startswith("informational"):
+        return "High"
+    if "medium" in risk and not risk.startswith("informational"):
+        return "Medium"
+    if "low" in risk and not risk.startswith("informational"):
+        return "Low"
+    if "informational" in risk:
+        return "Info"
+    return "Unknown"
+
+
+def status_class(blocking: int) -> str:
+    return "ok" if blocking == 0 else "bad"
+
+
+def badge(text: str, kind: str) -> str:
+    return f'<span class="badge {kind}">{html.escape(text)}</span>'
+
+
+def bar(label: str, value: int, total: int, kind: str) -> str:
+    width = 0 if total == 0 else max(4, round(value / total * 100))
+    return f"""
+    <div class="bar-row">
+      <div class="bar-label"><span>{html.escape(label)}</span><strong>{value}</strong></div>
+      <div class="bar"><span class="{kind}" style="width:{width}%"></span></div>
+    </div>
+    """
+
+
+def control_row(name: str, tools: str, result: str, blocking: int, report: str) -> str:
+    status = "PASS" if blocking == 0 else "FAIL"
+    kind = "ok" if blocking == 0 else "bad"
+    return f"""
+    <tr>
+      <td><strong>{html.escape(name)}</strong><small>{html.escape(tools)}</small></td>
+      <td>{html.escape(result)}</td>
+      <td>{badge(status, kind)}</td>
+      <td><code>{html.escape(report)}</code></td>
+    </tr>
+    """
+
+
+def main() -> None:
+    REPORTS.mkdir(parents=True, exist_ok=True)
+
+    semgrep_count, bandit_count, sast_severity = sast_metrics()
+    pip_count, trivy_count, sca_severity = sca_metrics()
+    detect_count, gitleaks_count = secrets_metrics()
+    dast_rows = dast_alerts()
+    dast_risk = Counter(risk_bucket(row["risk"]) for row in dast_rows)
+    dast_blocking = dast_risk["High"] + dast_risk["Medium"]
+
+    pytest_text = pytest_result()
+    pytest_blocking = 0 if "passed" in pytest_text and "failed" not in pytest_text else 1
+    sast_total = semgrep_count + bandit_count
+    sca_total = pip_count + trivy_count
+    secrets_total = detect_count + gitleaks_count
+    total_blocking = pytest_blocking + sast_total + sca_total + secrets_total + dast_blocking
+    gate = "PASS" if total_blocking == 0 else "FAIL"
+
+    total_dast = len(dast_rows)
+    dast_bars = "\n".join(
+        [
+            bar("High", dast_risk["High"], total_dast, "high"),
+            bar("Medium", dast_risk["Medium"], total_dast, "medium"),
+            bar("Low", dast_risk["Low"], total_dast, "low"),
+            bar("Informational", dast_risk["Info"], total_dast, "info"),
+        ]
+    )
+
+    controls = "\n".join(
+        [
+            control_row("Regression tests", "pytest", pytest_text, pytest_blocking, "reports/pytest/security-tests.txt"),
+            control_row("SAST", "Semgrep + Bandit", f"{sast_total} findings", sast_total, "reports/sast/summary.md"),
+            control_row("SCA", "pip-audit + Trivy", f"{sca_total} vulnerabilities", sca_total, "reports/sca/summary.md"),
+            control_row("Secrets", "detect-secrets + Gitleaks", f"{secrets_total} findings", secrets_total, "reports/secrets/summary.md"),
+            control_row("DAST", "OWASP ZAP", f"{total_dast} alerts, {dast_blocking} blocking", dast_blocking, "reports/dast/summary.md"),
+        ]
+    )
+
+    dast_table = "\n".join(
+        f"""
+        <tr>
+          <td>{html.escape(row['scan'])}</td>
+          <td>{html.escape(row['name'])}</td>
+          <td>{badge(risk_bucket(row['risk']), risk_bucket(row['risk']).lower())}</td>
+          <td>{html.escape(row['confidence'])}</td>
+          <td>{row['instances']}</td>
+        </tr>
+        """
+        for row in dast_rows[:30]
+    ) or '<tr><td colspan="5">No ZAP alerts were reported.</td></tr>'
+
+    generated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+
+    document = f"""<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Security CI/CD Dashboard</title>
+  <style>
+    :root {{
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d8dee9;
+      --ok: #0f8a5f;
+      --bad: #b42318;
+      --info: #2563eb;
+      --low: #a16207;
+      --medium: #c2410c;
+      --high: #be123c;
+      --shadow: 0 18px 45px rgba(23, 32, 51, .08);
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }}
+    header {{
+      background: #172033;
+      color: white;
+      padding: 34px 42px;
+    }}
+    header h1 {{ margin: 0 0 8px; font-size: 30px; letter-spacing: 0; }}
+    header p {{ margin: 0; color: #cbd5e1; }}
+    main {{ padding: 28px 42px 46px; max-width: 1400px; margin: 0 auto; }}
+    .hero {{
+      display: grid;
+      grid-template-columns: minmax(260px, 1.3fr) repeat(4, minmax(150px, .7fr));
+      gap: 16px;
+      margin-top: -54px;
+      align-items: stretch;
+    }}
+    .card, .panel {{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }}
+    .card {{ padding: 20px; }}
+    .card h2 {{ margin: 0 0 10px; font-size: 14px; color: var(--muted); font-weight: 700; }}
+    .metric {{ font-size: 34px; font-weight: 800; margin: 0; }}
+    .sub {{ color: var(--muted); font-size: 13px; margin-top: 8px; }}
+    .gate {{ border-top: 5px solid var(--ok); }}
+    .gate.bad {{ border-top-color: var(--bad); }}
+    .gate .metric {{ color: var(--ok); }}
+    .gate.bad .metric {{ color: var(--bad); }}
+    .grid {{ display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; margin-top: 20px; }}
+    .panel {{ padding: 22px; }}
+    .panel h2 {{ margin: 0 0 16px; font-size: 20px; }}
+    table {{ width: 100%; border-collapse: collapse; }}
+    th, td {{ padding: 12px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }}
+    th {{ color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }}
+    td small {{ display: block; color: var(--muted); margin-top: 3px; }}
+    code {{ background: #eef2f7; padding: 3px 6px; border-radius: 5px; font-size: 12px; }}
+    .badge {{
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      color: white;
+      font-size: 12px;
+      font-weight: 800;
+    }}
+    .badge.ok {{ background: var(--ok); }}
+    .badge.bad {{ background: var(--bad); }}
+    .badge.high {{ background: var(--high); }}
+    .badge.medium {{ background: var(--medium); }}
+    .badge.low {{ background: var(--low); }}
+    .badge.info, .badge.unknown {{ background: var(--info); }}
+    .bar-row {{ margin-bottom: 14px; }}
+    .bar-label {{ display: flex; justify-content: space-between; margin-bottom: 6px; color: var(--muted); font-size: 14px; }}
+    .bar {{ height: 12px; background: #e8edf5; border-radius: 999px; overflow: hidden; }}
+    .bar span {{ display: block; height: 100%; border-radius: 999px; }}
+    .bar .high {{ background: var(--high); }}
+    .bar .medium {{ background: var(--medium); }}
+    .bar .low {{ background: var(--low); }}
+    .bar .info {{ background: var(--info); }}
+    .links {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }}
+    .link-card {{ border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fbfcff; }}
+    .link-card strong {{ display: block; margin-bottom: 6px; }}
+    .link-card span {{ color: var(--muted); font-size: 13px; }}
+    @media (max-width: 1080px) {{
+      header, main {{ padding-left: 18px; padding-right: 18px; }}
+      .hero, .grid, .links {{ grid-template-columns: 1fr; }}
+      .hero {{ margin-top: -34px; }}
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Security CI/CD Dashboard</h1>
+    <p>Единый отчет автоматизированных контролей безопасности. Сформировано: {generated_at}</p>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="card gate {status_class(total_blocking)}">
+        <h2>Security Gate</h2>
+        <p class="metric">{gate}</p>
+        <p class="sub">{total_blocking} blocking finding(s)</p>
+      </div>
+      <div class="card"><h2>Pytest</h2><p class="metric">{html.escape(pytest_text.split()[0] if pytest_text else '-')}</p><p class="sub">{html.escape(pytest_text)}</p></div>
+      <div class="card"><h2>SAST</h2><p class="metric">{sast_total}</p><p class="sub">Semgrep {semgrep_count}, Bandit {bandit_count}</p></div>
+      <div class="card"><h2>SCA</h2><p class="metric">{sca_total}</p><p class="sub">pip-audit {pip_count}, Trivy {trivy_count}</p></div>
+      <div class="card"><h2>DAST</h2><p class="metric">{total_dast}</p><p class="sub">{dast_blocking} blocking, {dast_risk['Info']} informational</p></div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Контроли безопасности</h2>
+        <table>
+          <thead><tr><th>Контроль</th><th>Результат</th><th>Gate</th><th>Отчет</th></tr></thead>
+          <tbody>{controls}</tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h2>DAST Risk Breakdown</h2>
+        {dast_bars}
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top:18px">
+      <h2>OWASP ZAP Alerts</h2>
+      <table>
+        <thead><tr><th>Scan</th><th>Alert</th><th>Risk</th><th>Confidence</th><th>Instances</th></tr></thead>
+        <tbody>{dast_table}</tbody>
+      </table>
+    </section>
+
+    <section class="panel" style="margin-top:18px">
+      <h2>Артефакты</h2>
+      <div class="links">
+        <div class="link-card"><strong>SAST</strong><span>reports/sast/summary.md, semgrep.sarif, bandit.json</span></div>
+        <div class="link-card"><strong>SCA</strong><span>reports/sca/summary.md, pip-audit.json, trivy.json</span></div>
+        <div class="link-card"><strong>Secrets</strong><span>reports/secrets/summary.md, detect-secrets.json, gitleaks.sarif</span></div>
+        <div class="link-card"><strong>DAST</strong><span>reports/dast/zap-baseline.html, zap-full.html, zap-auth.html</span></div>
+        <div class="link-card"><strong>Pytest</strong><span>reports/pytest/security-tests.txt</span></div>
+        <div class="link-card"><strong>Summary</strong><span>reports/security-ci-summary.md</span></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+"""
+
+    OUT.write_text(document, encoding="utf-8")
+    print(f"Dashboard written to {OUT}")
+
+
+if __name__ == "__main__":
+    main()

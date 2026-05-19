@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Почта - Corp Mail{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Папка: {{ folder }}</h1>
+    <p>{{ profile.department }} / {{ profile.title }}. Непрочитанных писем: {{ stats.unread }}.</p>
+  </div>
+  <div class="actions">
+    <a class="primary-button" href="{{ url_for('mailbox.compose') }}">Новое письмо</a>
+    <a class="ghost-button" href="{{ url_for('mailbox.dashboard', folder='archive') }}">Архив</a>
+  </div>
+</div>
+
+<section class="kpi-grid">
+  <div class="kpi"><span>Входящие</span><strong>{{ stats.inbox }}</strong></div>
+  <div class="kpi"><span>Непрочитанные</span><strong>{{ stats.unread }}</strong></div>
+  <div class="kpi"><span>Отправленные</span><strong>{{ stats.sent }}</strong></div>
+  <div class="kpi"><span>Избранные</span><strong>{{ stats.starred }}</strong></div>
+</section>
+
+<section class="table-panel">
+  <table>
+    <thead>
+      <tr>
+        <th>От</th>
+        <th>Тема</th>
+        <th>Статус</th>
+        <th>Дата</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in mails %}
+      <tr class="mail-row {% if not m.is_read %}unread{% endif %}">
+        <td>{{ m.sender }}</td>
+        <td>
+          <div class="subject-cell">
+            <a href="{{ url_for('mailbox.mail_detail', mail_id=m.id) }}">{{ m.subject }}</a>
+            <span class="subject-meta">
+              <span class="badge {{ m.priority }}">{{ m.priority }}</span>
+              <span class="badge {{ m.classification }}">{{ m.classification }}</span>
+              {% if m.label %}<span class="badge">{{ m.label }}</span>{% endif %}
+            </span>
+          </div>
+        </td>
+        <td>{{ m.status }}{% if m.starred %} / starred{% endif %}</td>
+        <td class="meta">{{ m.created_at }}</td>
+        <td>
+          <div class="actions">
+            <a class="ghost-button" href="{{ url_for('mailbox.star_mail', mail_id=m.id) }}">Star</a>
+            <a class="ghost-button" href="{{ url_for('mailbox.move_mail', mail_id=m.id, folder='archive') }}">Archive</a>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">В этой папке пока нет писем.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

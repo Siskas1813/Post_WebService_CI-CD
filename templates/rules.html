@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Правила - Corp Mail{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Правила обработки</h1>
+    <p>Модель автоматической маршрутизации писем по выражениям и целевым папкам.</p>
+  </div>
+</div>
+
+<section class="panel">
+  <form method="post" action="{{ url_for('mailbox.rules') }}" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label>Название</label>
+      <input class="input" name="name" placeholder="Vendor quarantine">
+    </div>
+    <div class="form-row">
+      <label>Папка</label>
+      <select name="target_folder">
+        <option value="inbox">inbox</option>
+        <option value="archive">archive</option>
+        <option value="drafts">drafts</option>
+      </select>
+    </div>
+    <div class="form-row full">
+      <label>Выражение</label>
+      <input class="input" name="expression" placeholder="sender contains vendor">
+    </div>
+    <div class="form-row">
+      <label>Включено</label>
+      <select name="enabled">
+        <option value="1">yes</option>
+        <option value="0">no</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>&nbsp;</label>
+      <button class="primary-button" type="submit">Создать правило</button>
+    </div>
+  </form>
+</section>
+
+<section class="table-panel">
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Название</th><th>Выражение</th><th>Папка</th><th>Статус</th></tr>
+    </thead>
+    <tbody>
+      {% for r in rules %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td>{{ r.name }}</td>
+        <td>{{ r.expression }}</td>
+        <td>{{ r.target_folder }}</td>
+        <td>{% if r.enabled %}enabled{% else %}disabled{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

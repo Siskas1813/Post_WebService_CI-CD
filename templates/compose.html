@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Новое письмо - Corp Mail{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Новое письмо</h1>
+    <p>Отправка внутренней корреспонденции, классификация и метки для рабочих процессов.</p>
+  </div>
+</div>
+
+<section class="panel">
+  <form method="post" action="{{ url_for('mailbox.compose') }}" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label>Кому</label>
+      <input class="input" name="recipient" type="text" placeholder="employee или manager" list="contacts">
+      <datalist id="contacts">
+        {% for contact in contacts %}
+        <option value="{{ contact.email }}">{{ contact.display_name }}</option>
+        {% endfor %}
+      </datalist>
+    </div>
+    <div class="form-row">
+      <label>Копия</label>
+      <input class="input" name="cc" type="text" placeholder="manager, soc@corp.local">
+    </div>
+    <div class="form-row full">
+      <label>Тема</label>
+      <input class="input" name="subject" type="text" placeholder="Тема письма">
+    </div>
+    <div class="form-row">
+      <label>Приоритет</label>
+      <select name="priority">
+        <option value="normal">normal</option>
+        <option value="high">high</option>
+        <option value="low">low</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Классификация</label>
+      <select name="classification">
+        <option value="internal">internal</option>
+        <option value="confidential">confidential</option>
+        <option value="restricted">restricted</option>
+      </select>
+    </div>
+    <div class="form-row full">
+      <label>Метка</label>
+      <input class="input" name="label" type="text" placeholder="Finance, HR, Security">
+    </div>
+    <div class="form-row full">
+      <label>Текст</label>
+      <textarea name="body" rows="12" placeholder="Сообщение"></textarea>
+    </div>
+    <div class="form-row full">
+      <button class="primary-button" type="submit">Отправить</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

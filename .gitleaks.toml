@@ -1,0 +1,15 @@
+title = "Corp Mail Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Ignore local runtime, generated reports and packaged archives"
+paths = [
+  '''(^|[\\/])\.venv([\\/]|$)''',
+  '''(^|[\\/])reports([\\/]|$)''',
+  '''(^|[\\/])uploads([\\/]|$)''',
+  '''(^|[\\/])__pycache__([\\/]|$)''',
+  '''corp_mail\.db$''',
+  '''diplom.*\.zip$'''
+]

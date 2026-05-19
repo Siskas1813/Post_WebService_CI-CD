@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corp Mail Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body class="login-page">
+  <main class="login-layout">
+    <section class="login-hero">
+      <div class="brand-mark large">CM</div>
+      <h1>Corp Mail Enterprise</h1>
+      <p>Корпоративная веб-почта с рабочими папками, контактами, аудитом, интеграциями и удобной административной панелью.</p>
+      <div class="hero-grid">
+        <span>MailOps</span>
+        <span>Audit</span>
+        <span>API Gateway</span>
+        <span>Admin Tools</span>
+      </div>
+    </section>
+
+    <section class="login-panel">
+      <h2>Вход в систему</h2>
+      <p class="muted">Демо-аккаунты: employee / manager / admin. Пароль совпадает с ролью плюс 123.</p>
+      {% if error %}
+      <div class="alert danger">{{ error }}</div>
+      {% endif %}
+      <form method="post" action="{{ url_for('auth.login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <label>Логин</label>
+        <input class="input" type="text" name="username" placeholder="employee">
+        <label>Пароль</label>
+        <input class="input" type="password" name="password" placeholder="employee123">
+        <button class="primary-button" type="submit">Войти</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

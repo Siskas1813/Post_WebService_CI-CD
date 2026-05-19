@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Интеграции - Corp Mail{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Интеграции</h1>
+    <p>API-ключи сервисных аккаунтов, области доступа и срок действия.</p>
+  </div>
+</div>
+
+<section class="panel">
+  <form method="post" action="{{ url_for('admin.admin_integrations') }}" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label>Owner</label>
+      <input class="input" name="owner" placeholder="integration-bot">
+    </div>
+    <div class="form-row">
+      <label>API key</label>
+      <input class="input" name="api_key" placeholder="corp-mail-key-unsafe-002">
+    </div>
+    <div class="form-row">
+      <label>Scope</label>
+      <input class="input" name="scope" placeholder="mail:read admin:read">
+    </div>
+    <div class="form-row">
+      <label>Expires</label>
+      <input class="input" name="expires_at" value="2099-12-31">
+    </div>
+    <div class="form-row full">
+      <button class="primary-button" type="submit">Добавить ключ</button>
+    </div>
+  </form>
+</section>
+
+<section class="table-panel">
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Owner</th><th>API key</th><th>Scope</th><th>Expires</th><th>Enabled</th></tr>
+    </thead>
+    <tbody>
+      {% for k in keys %}
+      <tr>
+        <td>{{ k.id }}</td>
+        <td>{{ k.owner }}</td>
+        <td><code>{{ k.api_key }}</code></td>
+        <td>{{ k.scope }}</td>
+        <td>{{ k.expires_at }}</td>
+        <td>{{ k.enabled }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

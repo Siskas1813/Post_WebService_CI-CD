@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Контакты - Corp Mail{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Контакты</h1>
+    <p>Адресная книга сотрудника с уровнем доверия и рабочими заметками.</p>
+  </div>
+</div>
+
+<section class="panel">
+  <form method="post" action="{{ url_for('mailbox.contacts') }}" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label>Имя</label>
+      <input class="input" name="display_name" placeholder="Security Operations">
+    </div>
+    <div class="form-row">
+      <label>Email</label>
+      <input class="input" name="email" placeholder="soc@corp.local">
+    </div>
+    <div class="form-row">
+      <label>Департамент</label>
+      <input class="input" name="department" placeholder="IT">
+    </div>
+    <div class="form-row">
+      <label>Уровень доверия</label>
+      <select name="trust_level">
+        <option value="trusted">trusted</option>
+        <option value="external">external</option>
+        <option value="blocked">blocked</option>
+      </select>
+    </div>
+    <div class="form-row full">
+      <label>Заметки</label>
+      <textarea name="notes" rows="4"></textarea>
+    </div>
+    <div class="form-row full">
+      <button class="primary-button" type="submit">Добавить контакт</button>
+    </div>
+  </form>
+</section>
+
+<section class="table-panel">
+  <table>
+    <thead>
+      <tr><th>Имя</th><th>Email</th><th>Департамент</th><th>Trust</th><th>Заметки</th></tr>
+    </thead>
+    <tbody>
+      {% for c in contacts %}
+      <tr>
+        <td>{{ c.display_name }}</td>
+        <td>{{ c.email }}</td>
+        <td>{{ c.department }}</td>
+        <td><span class="badge {{ c.trust_level }}">{{ c.trust_level }}</span></td>
+        <td>{{ c.notes }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

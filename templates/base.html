@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Corp Mail Enterprise{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('mailbox.dashboard') }}">
+      <span class="brand-mark">CM</span>
+      <span>
+        <strong>Corp Mail Enterprise</strong>
+        <small>Secure collaboration workspace</small>
+      </span>
+    </a>
+    {% if session.get('username') %}
+    <div class="top-actions">
+      <form class="global-search" method="get" action="{{ url_for('mailbox.search') }}">
+        <input type="search" name="q" placeholder="Поиск по почте, отправителю, тексту">
+        <button class="icon-button" type="submit" title="Искать">Go</button>
+      </form>
+      <a class="link-button" href="{{ url_for('mailbox.profile') }}">{{ session.get('full_name') }}</a>
+      <a class="ghost-button" href="{{ url_for('auth.logout') }}">Выйти</a>
+    </div>
+    {% endif %}
+  </header>
+
+  <div class="shell">
+    {% if session.get('username') %}
+    <aside class="sidebar">
+      <section class="profile-chip">
+        <div class="avatar">{{ session.get('full_name', 'U')[:1] }}</div>
+        <div>
+          <strong>{{ session.get('full_name') }}</strong>
+          <small>{{ session.get('title') or session.get('department') }}</small>
+        </div>
+      </section>
+
+      <nav class="nav-group" aria-label="Почтовые папки">
+        <span class="nav-title">Почта</span>
+        <a href="{{ url_for('mailbox.dashboard', folder='inbox') }}">Входящие <b>{{ nav_stats.inbox }}</b></a>
+        <a href="{{ url_for('mailbox.dashboard', folder='starred') }}">Избранное <b>{{ nav_stats.starred }}</b></a>
+        <a href="{{ url_for('mailbox.dashboard', folder='sent') }}">Отправленные <b>{{ nav_stats.sent }}</b></a>
+        <a href="{{ url_for('mailbox.dashboard', folder='drafts') }}">Черновики <b>{{ nav_stats.drafts }}</b></a>
+        <a href="{{ url_for('mailbox.dashboard', folder='archive') }}">Архив <b>{{ nav_stats.archive }}</b></a>
+      </nav>
+
+      <nav class="nav-group" aria-label="Рабочие разделы">
+        <span class="nav-title">Рабочая область</span>
+        <a href="{{ url_for('mailbox.compose') }}">Новое письмо</a>
+        <a href="{{ url_for('mailbox.contacts') }}">Контакты</a>
+        <a href="{{ url_for('mailbox.rules') }}">Правила</a>
+        <a href="{{ url_for('mailbox.attachments_center') }}">Вложения</a>
+      </nav>
+
+      {% if session.get('role') == 'admin' %}
+      <nav class="nav-group" aria-label="Администрирование">
+        <span class="nav-title">Админ</span>
+        <a href="{{ url_for('admin.admin_users') }}">Пользователи</a>
+        <a href="{{ url_for('admin.admin_audit') }}">Аудит</a>
+        <a href="{{ url_for('admin.admin_integrations') }}">Интеграции</a>
+        <a href="{{ url_for('admin.admin_sql_console') }}">Диагностика</a>
+      </nav>
+      {% endif %}
+    </aside>
+    {% endif %}
+
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

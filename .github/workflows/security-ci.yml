@@ -1,0 +1,134 @@
+name: Security CI/CD
+
+"on":
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  pages: write
+  id-token: write
+
+env:
+  PYTHON_VERSION: "3.12"
+  ZAP_AUTH_USERNAME: employee
+  ZAP_AUTH_PASSWORD: ${{ secrets.ZAP_AUTH_PASSWORD }}
+
+jobs:
+  security-controls:
+    name: Automated Security Controls
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+          trivy --version
+
+      - name: Install Gitleaks
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+          gitleaks version
+
+      - name: Pytest security regression suite
+        run: |
+          mkdir -p reports/pytest
+          python -m pytest tests -q | tee reports/pytest/security-tests.txt
+
+      - name: SAST - Semgrep and Bandit
+        run: bash scripts/ci_run_sast.sh
+
+      - name: SCA - pip-audit and Trivy
+        run: bash scripts/ci_run_sca.sh
+
+      - name: Secrets scanning - detect-secrets and Gitleaks
+        run: bash scripts/ci_run_secrets.sh
+
+      - name: DAST - OWASP ZAP baseline, full, authenticated
+        run: bash scripts/ci_run_dast.sh
+
+      - name: Build unified security summary
+        if: always()
+        run: |
+          python scripts/ci_collect_summary.py
+          python scripts/ci_generate_dashboard.py
+
+      - name: Publish run summary
+        if: always()
+        run: |
+          if [ -f reports/security-ci-summary.md ]; then
+            cat reports/security-ci-summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "HTML dashboard: download the \`security-reports\` artifact or open the GitHub Pages deployment." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload SARIF reports
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/sast/semgrep.sarif
+          category: semgrep
+
+      - name: Upload security reports artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: reports
+          retention-days: 14
+
+      - name: Prepare GitHub Pages dashboard
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          mkdir -p pages
+          cp reports/security-dashboard.html pages/index.html
+          cp reports/security-ci-summary.md pages/security-ci-summary.md
+          cp -R reports pages/reports
+
+      - name: Upload GitHub Pages dashboard
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages
+
+      - name: Security gate
+        if: always()
+        run: python scripts/ci_security_gate.py sast sca secrets dast
+
+  deploy-security-dashboard:
+    name: Publish Security Dashboard
+    needs: security-controls
+    if: always() && github.event_name != 'pull_request' && needs.security-controls.result != 'cancelled'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy dashboard to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

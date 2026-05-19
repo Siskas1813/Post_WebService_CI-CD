@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Пользователи - Corp Mail{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Пользователи</h1>
+    <p>Администрирование сотрудников, ролей, квот и последней активности.</p>
+  </div>
+</div>
+
+<section class="panel">
+  <form method="get" action="{{ url_for('admin.admin_users') }}" class="form-grid">
+    <div class="form-row">
+      <label>Поиск</label>
+      <input class="input" name="q" value="{{ q }}" placeholder="username или department">
+    </div>
+    <div class="form-row">
+      <label>&nbsp;</label>
+      <button class="primary-button" type="submit">Найти</button>
+    </div>
+  </form>
+</section>
+
+<section class="table-panel">
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Username</th><th>Role</th><th>Department</th><th>Title</th><th>Last login</th><th>API quota</th></tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.username }}</td>
+        <td><span class="badge">{{ u.role }}</span></td>
+        <td>{{ u.department }}</td>
+        <td>{{ u.title }}</td>
+        <td>{{ u.last_login }}</td>
+        <td>{{ u.api_quota }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

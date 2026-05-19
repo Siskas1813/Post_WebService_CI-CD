@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Диагностика - Corp Mail{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Системная диагностика</h1>
+    <p>Служебная панель для диагностики данных и проверки системных отчетов.</p>
+  </div>
+</div>
+
+<section class="panel">
+  {% if error %}
+  <div class="alert danger">{{ error }}</div>
+  {% endif %}
+  <form method="post" action="{{ url_for('admin.admin_sql_console') }}" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row full">
+      <label>Диагностический запрос</label>
+      <textarea name="query" rows="7">{{ query or 'SELECT id, username, role FROM users' }}</textarea>
+    </div>
+    <div class="form-row full">
+      <button class="primary-button" type="submit">Run</button>
+    </div>
+  </form>
+</section>
+
+<section class="table-panel">
+  <table>
+    <tr><th>Result</th></tr>
+    {% for r in rows %}
+    <tr><td>{{ r }}</td></tr>
+    {% else %}
+    <tr><td>Нет результата.</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

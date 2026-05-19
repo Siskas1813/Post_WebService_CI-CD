@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}{{ mail.subject }} - Corp Mail{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ mail.subject }}</h1>
+    <p>Thread: {{ mail.thread_id }} / {{ mail.classification }}</p>
+  </div>
+  <div class="actions">
+    <a class="ghost-button" href="{{ url_for('mailbox.star_mail', mail_id=mail.id) }}">Star</a>
+    <a class="ghost-button" href="{{ url_for('mailbox.move_mail', mail_id=mail.id, folder='archive') }}">Archive</a>
+    <a class="primary-button" href="{{ url_for('mailbox.compose') }}">Ответить</a>
+  </div>
+</div>
+
+<article class="mail-preview">
+  <div class="subject-meta">
+    <span class="badge {{ mail.priority }}">{{ mail.priority }}</span>
+    <span class="badge {{ mail.classification }}">{{ mail.classification }}</span>
+    {% if mail.label %}<span class="badge">{{ mail.label }}</span>{% endif %}
+  </div>
+  <p><strong>От:</strong> {{ mail.sender }}</p>
+  <p><strong>Кому:</strong> {{ mail.recipient }}</p>
+  <p><strong>CC:</strong> {{ mail.cc or 'нет' }}</p>
+  <p class="meta"><strong>Дата:</strong> {{ mail.created_at }}</p>
+  <div class="mail-body">{{ mail.body }}</div>
+</article>
+
+<section class="panel">
+  <h2>Вложения</h2>
+  {% if attachments %}
+  <table>
+    <tr><th>Файл</th><th>Тип</th><th>Размер</th><th>Действие</th></tr>
+    {% for a in attachments %}
+    <tr>
+      <td>{{ a.filename }}</td>
+      <td>{{ a.content_type }}</td>
+      <td>{{ a.size_bytes }} байт</td>
+      <td><a class="ghost-button" href="{{ url_for('mailbox.download', attachment_id=a.id) }}">Скачать</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">К письму не прикреплены файлы.</p>
+  {% endif %}
+</section>
+{% endblock %}

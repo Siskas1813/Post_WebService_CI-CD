@@ -1,0 +1,99 @@
+rules:
+  - id: flask-debug-enabled
+    languages: [python]
+    severity: WARNING
+    message: Flask application is started with debug mode enabled.
+    metadata:
+      category: security
+      cwe: "CWE-489: Active Debug Code"
+      recommendation: Disable debug mode outside local development.
+    patterns:
+      - pattern: app.run(..., debug=True, ...)
+
+  - id: flask-hardcoded-secret-key
+    languages: [python]
+    severity: ERROR
+    message: Flask SECRET_KEY is hardcoded in source code.
+    metadata:
+      category: security
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      recommendation: Read secrets from environment variables or a secret manager.
+    patterns:
+      - pattern-either:
+          - pattern: $APP.config["SECRET_KEY"] = "..."
+          - pattern: $APP.config['SECRET_KEY'] = "..."
+
+  - id: flask-hardcoded-sensitive-config
+    languages: [python]
+    severity: WARNING
+    message: Sensitive configuration value appears to be hardcoded.
+    metadata:
+      category: security
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      recommendation: Store passwords, tokens and signing keys outside source code.
+    patterns:
+      - pattern-either:
+          - pattern: $APP.config["$KEY"] = "..."
+          - pattern: $APP.config['$KEY'] = "..."
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: ".*(PASSWORD|TOKEN|KEY|SECRET).*"
+
+  - id: sqlite-fstring-query
+    languages: [python]
+    severity: ERROR
+    message: SQL query is built with an f-string before execution.
+    metadata:
+      category: security
+      cwe: "CWE-89: SQL Injection"
+      recommendation: Use parameterized queries with placeholders.
+    patterns:
+      - pattern-either:
+          - pattern: $CUR.execute(f"...", ...)
+          - pattern: $CONN.execute(f"...", ...)
+
+  - id: unsafe-pickle-load
+    languages: [python]
+    severity: ERROR
+    message: pickle.load is used on file data.
+    metadata:
+      category: security
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      recommendation: Do not deserialize user-controlled pickle files.
+    patterns:
+      - pattern: pickle.load(...)
+
+  - id: send-file-user-controlled-path
+    languages: [python]
+    severity: ERROR
+    message: send_file receives a path that may come from request parameters.
+    metadata:
+      category: security
+      cwe: "CWE-22: Path Traversal"
+      recommendation: Download files by server-side id and validate ownership.
+    patterns:
+      - pattern-inside: |
+          $PATH = request.args.get(...)
+          ...
+      - pattern: send_file($PATH, ...)
+
+  - id: permissive-cors
+    languages: [python]
+    severity: WARNING
+    message: API response allows requests from every origin.
+    metadata:
+      category: security
+      cwe: "CWE-942: Permissive Cross-domain Policy"
+      recommendation: Limit CORS origins to trusted domains.
+    patterns:
+      - pattern: $RESP.headers["Access-Control-Allow-Origin"] = "*"
+
+  - id: jinja-safe-filter
+    languages: [generic]
+    severity: WARNING
+    message: Jinja safe filter disables HTML escaping.
+    metadata:
+      category: security
+      cwe: "CWE-79: Cross-site Scripting"
+      recommendation: Avoid safe for user-controlled values or sanitize rich text first.
+    pattern: "{{ $VALUE|safe }}"

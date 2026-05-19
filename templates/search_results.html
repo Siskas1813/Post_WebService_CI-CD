@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Поиск - Corp Mail{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Поиск</h1>
+    <p>Запрос: {{ query }}</p>
+  </div>
+</div>
+
+<section class="table-panel">
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Отправитель</th><th>Тема</th><th>Фрагмент</th><th>Класс</th></tr>
+    </thead>
+    <tbody>
+      {% for r in results %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td>{{ r.sender }}</td>
+        <td><a href="{{ url_for('mailbox.mail_detail', mail_id=r.id) }}">{{ r.subject }}</a></td>
+        <td>{{ r.body }}</td>
+        <td><span class="badge {{ r.classification }}">{{ r.classification }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">Ничего не найдено.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

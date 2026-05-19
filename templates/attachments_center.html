@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Вложения - Corp Mail{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Центр вложений</h1>
+    <p>Загрузка файлов к письмам и просмотр корпоративного хранилища вложений.</p>
+  </div>
+</div>
+
+<section class="panel">
+  <form method="post" action="{{ url_for('mailbox.attachments_center') }}" enctype="multipart/form-data" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label>ID письма</label>
+      <input class="input" type="text" name="mail_id" value="1">
+    </div>
+    <div class="form-row">
+      <label>Файл</label>
+      <input class="input" type="file" name="attachment">
+    </div>
+    <div class="form-row full">
+      <button class="primary-button" type="submit">Загрузить файл</button>
+    </div>
+  </form>
+</section>
+
+<section class="table-panel">
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Письмо</th><th>Имя файла</th><th>Тип</th><th>Путь</th><th>Загрузил</th></tr>
+    </thead>
+    <tbody>
+      {% for i in items %}
+      <tr>
+        <td>{{ i.id }}</td>
+        <td>{{ i.mail_id }}</td>
+        <td>{{ i.filename }}</td>
+        <td>{{ i.content_type }}</td>
+        <td><code>{{ i.storage_path }}</code></td>
+        <td>{{ i.uploader }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">Файлы еще не загружались.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

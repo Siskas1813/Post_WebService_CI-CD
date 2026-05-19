@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Профиль - Corp Mail{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Профиль</h1>
+    <p>Данные сотрудника, подпись и контактная информация.</p>
+  </div>
+</div>
+
+<section class="panel">
+  <form method="post" action="{{ url_for('mailbox.profile') }}" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label>ФИО</label>
+      <input class="input" name="full_name" value="{{ profile.full_name }}">
+    </div>
+    <div class="form-row">
+      <label>Должность</label>
+      <input class="input" name="title" value="{{ profile.title }}">
+    </div>
+    <div class="form-row">
+      <label>Телефон</label>
+      <input class="input" name="phone" value="{{ profile.phone }}">
+    </div>
+    <div class="form-row">
+      <label>Локация</label>
+      <input class="input" value="{{ profile.location }}" disabled>
+    </div>
+    <div class="form-row full">
+      <label>Подпись</label>
+      <textarea name="signature" rows="5">{{ profile.signature }}</textarea>
+    </div>
+    <div class="form-row full">
+      <button class="primary-button" type="submit">Сохранить</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
