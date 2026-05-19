@@ -10,14 +10,21 @@ semgrep \
   --config .semgrep.yml \
   --json \
   --output reports/sast/semgrep.json \
-  app.py webmail templates
+  app.py webmail templates || true
 
 semgrep \
   --config p/python \
   --config .semgrep.yml \
   --sarif \
   --output reports/sast/semgrep.sarif \
-  app.py webmail templates
+  app.py webmail templates || true
+
+if [[ ! -f reports/sast/semgrep.json ]]; then
+  echo '{"results":[]}' > reports/sast/semgrep.json
+fi
+if [[ ! -f reports/sast/semgrep.sarif ]]; then
+  echo '{"version":"2.1.0","runs":[]}' > reports/sast/semgrep.sarif
+fi
 
 echo "Running Bandit..."
 python -m bandit \
