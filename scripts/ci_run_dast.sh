@@ -9,6 +9,7 @@ APP_PORT="${APP_PORT:-5000}"
 
 mkdir -p reports/dast uploads
 rm -f reports/dast/zap-*.html reports/dast/zap-*.json reports/dast/zap-*.md reports/dast/zap-*.log reports/dast/zap-auth-plan.yaml reports/dast/summary.md reports/dast/flask.out.log reports/dast/flask.err.log reports/dast/zap-diagnostics.md
+chmod -R a+rwx reports/dast uploads
 
 echo "Starting application for DAST..."
 export CORP_MAIL_DISABLE_CSRF_FOR_DAST=1
@@ -158,6 +159,8 @@ set -e
   cat reports/dast/zap-exit-codes.txt
   echo
 } > reports/dast/zap-diagnostics.md
+
+chmod -R a+rwx reports/dast
 
 ensure_zap_json() {
   local scan_name="$1"
