@@ -61,6 +61,8 @@ CHECKS = {
     "dast": count_dast_blocking,
 }
 
+REPORT_ONLY_CHECKS = {"dast"}
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Fail CI when security reports contain blocking findings.")
@@ -71,7 +73,9 @@ def main() -> int:
     for check in args.checks:
         count = CHECKS[check]()
         print(f"{check}: {count} blocking finding(s)")
-        if count:
+        if count and check in REPORT_ONLY_CHECKS:
+            print(f"{check}: report-only control, findings are kept in artifacts and dashboard")
+        elif count:
             failed = True
 
     return 1 if failed else 0

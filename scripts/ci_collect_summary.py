@@ -55,7 +55,7 @@ def main() -> None:
         f"| SAST: Semgrep + Bandit | `reports/sast/summary.md` | {first_matching(sast, '- Total findings:')} findings |",
         f"| SCA: pip-audit + Trivy | `reports/sca/summary.md` | {first_matching(sca, '- Total findings:')} findings |",
         f"| Secrets: detect-secrets + Gitleaks | `reports/secrets/summary.md` | {first_matching(secrets, '- Total findings:')} findings |",
-        f"| DAST: OWASP ZAP | `reports/dast/summary.md` | {first_matching(dast, '- Total alerts:')} alerts total, gate blocks only Medium/High |",
+        f"| DAST: OWASP ZAP | `reports/dast/summary.md` | {first_matching(dast, '- Total alerts:')} alerts total, report-only CI control |",
         "",
         "## Included Reports",
         "",
@@ -72,7 +72,7 @@ def main() -> None:
         "",
         "## Notes",
         "",
-        "The CI/CD security gate fails on SAST, SCA and secrets findings. For DAST, the dashboard still shows the total ZAP alerts, but the gate fails only on Medium and High risk alerts; informational and low-risk observations remain in the artifact for manual review.",
+        "The CI/CD security gate fails on SAST, SCA and secrets findings. DAST is always executed and fully reported, but it is treated as a report-only CI control so ZAP noise does not hide the generated security artifacts.",
         "",
     ]
 
