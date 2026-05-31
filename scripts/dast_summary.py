@@ -58,6 +58,19 @@ def is_reported_alert(row: dict) -> bool:
     return True
 
 
+def risk_bucket(risk: str) -> str:
+    risk = risk.lower()
+    if "high" in risk and not risk.startswith("informational"):
+        return "High"
+    if "medium" in risk and not risk.startswith("informational"):
+        return "Medium"
+    if "low" in risk and not risk.startswith("informational"):
+        return "Low"
+    if "informational" in risk:
+        return "Informational"
+    return "Unknown"
+
+
 def markdown_table(rows: list[dict], limit: int = 40) -> str:
     lines = [
         "| Scan | Alert | Risk | Confidence | Instances |",
@@ -65,7 +78,7 @@ def markdown_table(rows: list[dict], limit: int = 40) -> str:
     ]
     for row in rows[:limit]:
         name = row["name"].replace("|", "\\|")
-        lines.append(f"| {row['scan']} | {name} | {row['risk']} | {row['confidence']} | {row['count']} |")
+        lines.append(f"| {row['scan']} | {name} | {risk_bucket(row['risk'])} | {row['confidence']} | {row['count']} |")
     return "\n".join(lines)
 
 
@@ -76,7 +89,7 @@ def main() -> None:
         rows.extend(zap_alerts(path))
     rows = [row for row in rows if is_reported_alert(row)]
 
-    by_risk = Counter(row["risk"] or "unknown" for row in rows)
+    by_risk = Counter(risk_bucket(row["risk"]) for row in rows)
     by_scan = Counter(row["scan"] for row in rows)
 
     lines = ["# DAST Summary", "", "## Totals", ""]
