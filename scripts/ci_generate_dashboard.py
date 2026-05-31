@@ -180,7 +180,7 @@ def main() -> None:
             control_row("SAST", "Semgrep + Bandit", f"{sast_total} findings", sast_total, "reports/sast/summary.md"),
             control_row("SCA", "pip-audit + Trivy", f"{sca_total} vulnerabilities", sca_total, "reports/sca/summary.md"),
             control_row("Secrets", "detect-secrets + Gitleaks", f"{secrets_total} findings", secrets_total, "reports/secrets/summary.md"),
-            control_row("DAST", "OWASP ZAP", f"{total_dast} alerts, {dast_blocking} blocking", dast_blocking, "reports/dast/summary.md"),
+            control_row("DAST", "OWASP ZAP", f"{total_dast} alerts total, {dast_blocking} blocking", dast_blocking, "reports/dast/summary.md"),
         ]
     )
 
@@ -358,7 +358,7 @@ def main() -> None:
       <div class="card"><h2>Pytest</h2><p class="metric">{html.escape(pytest_text.split()[0] if pytest_text else '-')}</p><p class="sub">{html.escape(pytest_text)}</p></div>
       <div class="card"><h2>SAST</h2><p class="metric">{sast_total}</p><p class="sub">Semgrep {semgrep_count}, Bandit {bandit_count}</p></div>
       <div class="card"><h2>SCA</h2><p class="metric">{sca_total}</p><p class="sub">pip-audit {pip_count}, Trivy {trivy_count}</p></div>
-      <div class="card"><h2>DAST</h2><p class="metric">{total_dast}</p><p class="sub">{dast_blocking} blocking, {dast_risk['Info']} informational</p></div>
+      <div class="card"><h2>DAST Alerts</h2><p class="metric">{total_dast}</p><p class="sub">{dast_blocking} blocking; {dast_risk['Low']} low; {dast_risk['Info']} informational</p></div>
     </section>
 
     <section class="grid">
