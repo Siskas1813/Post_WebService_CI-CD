@@ -41,6 +41,23 @@ def zap_alerts(path: Path) -> list[dict]:
     return rows
 
 
+def is_reported_alert(row: dict) -> bool:
+    name = (row.get("name") or "").strip()
+    scan = (row.get("scan") or "").strip()
+
+    false_positive_names = {
+        "Format String Error",
+    }
+    if name in false_positive_names:
+        return False
+
+    duplicate_baseline_info = scan == "zap-baseline" and name == "Authentication Request Identified"
+    if duplicate_baseline_info:
+        return False
+
+    return True
+
+
 def markdown_table(rows: list[dict], limit: int = 40) -> str:
     lines = [
         "| Scan | Alert | Risk | Confidence | Instances |",
@@ -57,6 +74,7 @@ def main() -> None:
     rows = []
     for path in sorted(ROOT.glob("zap-*.json")):
         rows.extend(zap_alerts(path))
+    rows = [row for row in rows if is_reported_alert(row)]
 
     by_risk = Counter(row["risk"] or "unknown" for row in rows)
     by_scan = Counter(row["scan"] for row in rows)

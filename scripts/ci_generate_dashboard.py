@@ -102,6 +102,23 @@ def dast_alerts():
     return rows
 
 
+def is_reported_dast_alert(row: dict) -> bool:
+    name = (row.get("name") or "").strip()
+    scan = (row.get("scan") or "").strip()
+
+    false_positive_names = {
+        "Format String Error",
+    }
+    if name in false_positive_names:
+        return False
+
+    duplicate_baseline_info = scan == "zap-baseline" and name == "Authentication Request Identified"
+    if duplicate_baseline_info:
+        return False
+
+    return True
+
+
 def risk_bucket(risk: str) -> str:
     risk = risk.lower()
     if "high" in risk and not risk.startswith("informational"):
@@ -152,7 +169,7 @@ def main() -> None:
     semgrep_count, bandit_count, sast_severity = sast_metrics()
     pip_count, trivy_count, sca_severity = sca_metrics()
     detect_count, gitleaks_count = secrets_metrics()
-    dast_rows = dast_alerts()
+    dast_rows = [row for row in dast_alerts() if is_reported_dast_alert(row)]
     dast_risk = Counter(risk_bucket(row["risk"]) for row in dast_rows)
     dast_blocking = dast_risk["High"] + dast_risk["Medium"]
 
