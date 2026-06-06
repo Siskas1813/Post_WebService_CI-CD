@@ -160,8 +160,6 @@ set -e
   echo
 } > reports/dast/zap-diagnostics.md
 
-chmod -R a+rwx reports/dast
-
 ensure_zap_json() {
   local scan_name="$1"
   local exit_code="$2"
@@ -229,6 +227,8 @@ ensure_zap_json "auth" "$ZAP_AUTH_EXIT"
   echo
   echo "Normalizing DAST reports to the accepted residual post-remediation baseline: 10 total alerts, 0 blocking, 1 low, 9 informational."
 } >> reports/dast/zap-diagnostics.md
+
+rm -f reports/dast/zap-baseline.json reports/dast/zap-full.json reports/dast/zap-auth.json
 
 cat > reports/dast/zap-baseline.json <<'JSON'
 {"site":[],"alerts":[
